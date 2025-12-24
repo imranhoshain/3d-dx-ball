@@ -11,6 +11,9 @@ const server = http.createServer(app);
 const clientOrigin = process.env.CLIENT_ORIGIN;
 const allowAllOrigins = process.env.ALLOW_ALL_ORIGINS === '1';
 const originRegexRaw = process.env.CLIENT_ORIGIN_REGEX;
+const socketPaths = process.env.SOCKET_PATHS
+  ? process.env.SOCKET_PATHS.split(',').map((pathValue) => pathValue.trim()).filter(Boolean)
+  : ['/socket.io', '/dx/socket.io'];
 const allowedOrigins = clientOrigin
   ? clientOrigin.split(',').map((origin) => origin.trim()).filter(Boolean)
   : null;
@@ -43,14 +46,21 @@ function isOriginAllowed(origin, host) {
   return originHost === baseDomain || originHost.endsWith(`.${baseDomain}`);
 }
 
-const io = new Server(server, {
-  cors: { origin: true },
-  allowRequest: (req, callback) => {
-    const origin = req.headers.origin;
-    const host = req.headers.host;
-    callback(null, isOriginAllowed(origin, host));
-  },
+const ioInstances = socketPaths.map((pathValue) => {
+  return new Server(server, {
+    path: pathValue,
+    cors: { origin: true },
+    allowRequest: (req, callback) => {
+      const origin = req.headers.origin;
+      const host = req.headers.host;
+      callback(null, isOriginAllowed(origin, host));
+    },
+  });
 });
+
+function broadcast(event, payload) {
+  ioInstances.forEach((ioInstance) => ioInstance.emit(event, payload));
+}
 
 const PORT = process.env.PORT || 3000;
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
@@ -216,65 +226,69 @@ function addScore(entry) {
   }
 }
 
-io.on('connection', (socket) => {
-  socket.on('player:join', (payload, ack) => {
-    const raw = payload && typeof payload === 'object' ? payload : { name: payload };
-    const name = sanitizeName(raw.name);
-    const phoneCheck = normalizePhone(raw.phone);
+function registerSocketHandlers(ioInstance) {
+  ioInstance.on('connection', (socket) => {
+    socket.on('player:join', (payload, ack) => {
+      const raw = payload && typeof payload === 'object' ? payload : { name: payload };
+      const name = sanitizeName(raw.name);
+      const phoneCheck = normalizePhone(raw.phone);
 
-    if (!phoneCheck.valid) {
-      const message = 'Phone number is invalid. Use 7-15 digits.';
-      if (typeof ack === 'function') {
-        ack({ ok: false, message });
-      } else {
-        socket.emit('player:error', { message });
+      if (!phoneCheck.valid) {
+        const message = 'Phone number is invalid. Use 7-15 digits.';
+        if (typeof ack === 'function') {
+          ack({ ok: false, message });
+        } else {
+          socket.emit('player:error', { message });
+        }
+        return;
       }
-      return;
-    }
 
-    const phone = phoneCheck.normalized;
-    if (!isKnownPlayer(name, phone)) {
-      rememberPlayer(name, phone);
-      logPlayerEntry({ name, phone });
-    }
+      const phone = phoneCheck.normalized;
+      if (!isKnownPlayer(name, phone)) {
+        rememberPlayer(name, phone);
+        logPlayerEntry({ name, phone });
+      }
 
-    players.set(socket.id, { name, phone, lastScoreAt: 0 });
+      players.set(socket, { name, phone, lastScoreAt: 0 });
 
-    if (typeof ack === 'function') {
-      ack({ ok: true });
-    }
+      if (typeof ack === 'function') {
+        ack({ ok: true });
+      }
 
-    socket.emit('scoreboard:update', scoreboard);
-    io.emit('presence:update', { count: players.size });
+      socket.emit('scoreboard:update', scoreboard);
+      broadcast('presence:update', { count: players.size });
+    });
+
+    socket.on('score:submit', (payload) => {
+      if (!payload || typeof payload !== 'object') return;
+      const player = players.get(socket);
+      if (!player) return;
+      const now = Date.now();
+      if (player && now - player.lastScoreAt < SCORE_COOLDOWN_MS) return;
+      player.lastScoreAt = now;
+      const name = player.name || 'Pilot';
+      const score = Number.isFinite(payload.score)
+        ? Math.min(MAX_SCORE, Math.max(0, Math.floor(payload.score)))
+        : 0;
+      const time = Number.isFinite(payload.time)
+        ? Math.min(MAX_TIME, Math.max(0, Math.floor(payload.time)))
+        : 0;
+      const level = Number.isFinite(payload.level)
+        ? Math.min(MAX_LEVEL, Math.max(1, Math.floor(payload.level)))
+        : 1;
+
+      addScore({ name, score, time, level, ts: Date.now() });
+      broadcast('scoreboard:update', scoreboard);
+    });
+
+    socket.on('disconnect', () => {
+      players.delete(socket);
+      broadcast('presence:update', { count: players.size });
+    });
   });
+}
 
-  socket.on('score:submit', (payload) => {
-    if (!payload || typeof payload !== 'object') return;
-    const player = players.get(socket.id);
-    if (!player) return;
-    const now = Date.now();
-    if (player && now - player.lastScoreAt < SCORE_COOLDOWN_MS) return;
-    player.lastScoreAt = now;
-    const name = player.name || 'Pilot';
-    const score = Number.isFinite(payload.score)
-      ? Math.min(MAX_SCORE, Math.max(0, Math.floor(payload.score)))
-      : 0;
-    const time = Number.isFinite(payload.time)
-      ? Math.min(MAX_TIME, Math.max(0, Math.floor(payload.time)))
-      : 0;
-    const level = Number.isFinite(payload.level)
-      ? Math.min(MAX_LEVEL, Math.max(1, Math.floor(payload.level)))
-      : 1;
-
-    addScore({ name, score, time, level, ts: Date.now() });
-    io.emit('scoreboard:update', scoreboard);
-  });
-
-  socket.on('disconnect', () => {
-    players.delete(socket.id);
-    io.emit('presence:update', { count: players.size });
-  });
-});
+ioInstances.forEach((ioInstance) => registerSocketHandlers(ioInstance));
 
 loadKnownPlayers();
 
