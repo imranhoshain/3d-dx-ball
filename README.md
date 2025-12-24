@@ -24,6 +24,8 @@ Dex Ball is a glassmorphism breakout-style game with a realtime scoreboard power
 ## Environment variables
 - `PORT`: Server port (default 3000)
 - `CLIENT_ORIGIN`: Comma-separated allowed origins for Socket.IO (optional)
+- `CLIENT_ORIGIN_REGEX`: Regex for allowed origins (optional)
+- `ALLOW_ALL_ORIGINS`: Set to `1` to accept any origin (use with care)
 - `TRUST_PROXY`: Set to `1` when running behind a proxy/load balancer
 
 ## Data

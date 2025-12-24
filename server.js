@@ -9,10 +9,48 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const clientOrigin = process.env.CLIENT_ORIGIN;
+const allowAllOrigins = process.env.ALLOW_ALL_ORIGINS === '1';
+const originRegexRaw = process.env.CLIENT_ORIGIN_REGEX;
 const allowedOrigins = clientOrigin
   ? clientOrigin.split(',').map((origin) => origin.trim()).filter(Boolean)
   : null;
-const io = new Server(server, allowedOrigins ? { cors: { origin: allowedOrigins } } : undefined);
+const originRegex = originRegexRaw ? new RegExp(originRegexRaw) : null;
+
+function getHostname(origin) {
+  try {
+    return new URL(origin).hostname;
+  } catch (err) {
+    return '';
+  }
+}
+
+function getBaseDomain(host) {
+  if (!host) return '';
+  const cleaned = host.split(':')[0];
+  const parts = cleaned.split('.').filter(Boolean);
+  if (parts.length < 2) return cleaned;
+  return parts.slice(-2).join('.');
+}
+
+function isOriginAllowed(origin, host) {
+  if (!origin) return true;
+  if (allowAllOrigins) return true;
+  if (allowedOrigins && allowedOrigins.includes(origin)) return true;
+  if (originRegex && originRegex.test(origin)) return true;
+  const baseDomain = getBaseDomain(host);
+  const originHost = getHostname(origin);
+  if (!baseDomain || !originHost) return false;
+  return originHost === baseDomain || originHost.endsWith(`.${baseDomain}`);
+}
+
+const io = new Server(server, {
+  cors: { origin: true },
+  allowRequest: (req, callback) => {
+    const origin = req.headers.origin;
+    const host = req.headers.host;
+    callback(null, isOriginAllowed(origin, host));
+  },
+});
 
 const PORT = process.env.PORT || 3000;
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
