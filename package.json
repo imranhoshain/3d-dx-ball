@@ -1,0 +1,17 @@
+{
+  "name": "dex-ball",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dex Ball - modern glassmorphism browser game with realtime scoreboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "socket.io": "^4.7.5"
+  }
+}

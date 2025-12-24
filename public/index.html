@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dex Ball</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="background">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+      <div class="grid-glow"></div>
+    </div>
+
+    <div class="shell">
+      <header class="top">
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <h1>Dex Ball</h1>
+            <p class="subline">A glass arena breakout run built for speed.</p>
+          </div>
+        </div>
+        <div class="status">
+          <div class="chip">
+            Online <span id="online-count">1</span>
+          </div>
+          <div class="chip">Room DX-01</div>
+        </div>
+      </header>
+
+      <main class="grid">
+        <section class="panel arena">
+          <div class="arena-header">
+            <div class="run-stats">
+              <h3 class="run-stats-title">Run Stats</h3>
+              <div class="run-stat">
+                <span class="run-stat-label">Score</span>
+                <span id="score" class="run-stat-value">0</span>
+              </div>
+              <div class="run-stat">
+                <span class="run-stat-label">Level</span>
+                <span id="level" class="run-stat-value">1</span>
+              </div>
+              
+              <div class="run-stat">
+                <span class="run-stat-label">Combo</span>
+                <span id="combo" class="run-stat-value">0</span>
+              </div>
+              <div class="run-stat">
+                <span class="run-stat-label">Speed</span>
+                <span id="speed" class="run-stat-value">1.0x</span>
+              </div>
+              <div class="run-stat">
+                <span class="run-stat-label">Time</span>
+                <span id="time" class="run-stat-value">0:00</span>
+              </div>
+              <div class="run-stat">
+                <span class="run-stat-label icon-label">
+                  <span class="sr-only">Lives</span>
+                  <svg class="icon-heart" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      d="M12 21s-7-4.35-9.5-8.35C.5 9.3 2.2 6 5.6 6c2 0 3.4 1.1 4.4 2.6C11 7.1 12.4 6 14.4 6c3.4 0 5.1 3.3 3.1 6.65C19 16.65 12 21 12 21z"
+                    />
+                  </svg>
+                </span>
+                <span id="lives" class="run-stat-value lives-value">3</span>
+              </div>
+            </div>
+          </div>
+          <div class="arena-stage">
+            <canvas id="game"></canvas>
+          </div>
+        </section>
+
+        <section class="panel side">
+          <div class="panel-title">
+            <h2>Dex Board</h2>
+            <span class="tag">TOP 10</span>
+          </div>
+          <ol id="scoreboard" class="scoreboard"></ol>
+
+          <div class="panel-block">
+            <h3>Active Mods</h3>
+            <div id="powerup-list" class="chips"></div>
+          </div>
+
+          <div class="panel-block">
+            <h3>Controls</h3>
+            <ul class="controls">
+              <li><span>Move</span> Mouse / Arrow Keys</li>
+              <li><span>Launch</span> Space / Tap</li>
+              <li><span>Pause</span> P</li>
+              <li><span>Restart</span> R</li>
+            </ul>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Dex Ball v1.0 · Glassmorphism Edition</span>
+        <span>Built with Node.js + Socket.IO</span>
+      </footer>
+    </div>
+
+    <div id="start-overlay" class="overlay">
+      <div class="modal">
+        <p class="eyebrow">Welcome Pilot</p>
+        <h2>Enter the Dex Ball arena</h2>
+        <p class="small">Pick a handle, launch the first volley, and own the board.</p>
+        <input id="player-name" type="text" maxlength="18" placeholder="Your handle" />
+        <input
+          id="player-phone"
+          type="tel"
+          inputmode="tel"
+          maxlength="18"
+          placeholder="Phone number (optional)"
+        />
+        <p id="form-error" class="form-error" role="alert"></p>
+        <button id="start-btn">Start Run</button>
+        <div class="hint">Tip: angle your hits to spin the glass shards.</div>
+      </div>
+    </div>
+
+    <div id="gameover-overlay" class="overlay hidden">
+      <div class="modal">
+        <p class="eyebrow">Run Complete</p>
+        <h2>Glass shattered</h2>
+        <p class="small">Final Score</p>
+        <div id="final-score" class="final-score">0</div>
+        <button id="retry-btn">Play Again</button>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
