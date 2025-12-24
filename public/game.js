@@ -1,4 +1,7 @@
-const socket = io();
+const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
+const basePath = new URL(baseHref, window.location.href).pathname.replace(/\/$/, '');
+const socketPath = `${basePath}/socket.io`;
+const socket = io({ path: socketPath });
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
